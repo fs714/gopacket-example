@@ -9,4 +9,5 @@ require (
 	github.com/onsi/gomega v1.15.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2
+	golang.org/x/net v0.0.0-20210428140749-89ef3d95e781
 )

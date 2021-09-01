@@ -13,7 +13,7 @@ import (
 )
 
 func ZeroCopyParserEngine(ifaceName string, filter string, ctx context.Context) {
-	handle, err := pcap.OpenLive(ifaceName, 65536, true, pcap.BlockForever)
+	handle, err := pcap.OpenLive(ifaceName, 65535, true, pcap.BlockForever)
 	if err != nil {
 		log.Errorf("failed to OpenLive by pcap, err: %s", err.Error())
 		os.Exit(0)

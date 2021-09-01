@@ -71,6 +71,8 @@ func main() {
 		go engine.ZeroCopyParserEngine(ifaceName, filter, ctx)
 	} else if engineName == "v6" {
 		go engine.ZeroCopyDecoderEngine(ifaceName, filter, ctx)
+	} else if engineName == "v7" {
+		go engine.AfpacketDecoderEngine(ifaceName, filter, ctx)
 	} else {
 		log.Errorf("invalid engine: %s", engineName)
 		os.Exit(0)
