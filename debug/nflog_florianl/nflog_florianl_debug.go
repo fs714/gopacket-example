@@ -10,6 +10,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -70,6 +71,7 @@ func main() {
 	firstLayer := layers.LayerTypeIPv4
 	decoded := make([]gopacket.LayerType, 0, 4)
 	var ipCnt, ipBytes, tcpCnt, tcpBytes, udpCnt, udpBytes, icmpCnt, icmpBytes int64
+	var mu sync.RWMutex
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -93,6 +95,7 @@ func main() {
 			}
 		}
 
+		mu.Lock()
 		for _, ly := range decoded {
 			switch ly {
 			case layers.LayerTypeIPv4:
@@ -114,8 +117,9 @@ func main() {
 			}
 		}
 
-		log.Infof("ipCnt: %d, ipBytes: %d, tcpCnt: %d, tcpBytes: %d, udpCnt: %d, udpBytes: %d, icmpCnt: %d, icmpBytes: %d",
-			ipCnt, ipBytes, tcpCnt, tcpBytes, udpCnt, udpBytes, icmpCnt, icmpBytes)
+		//log.Infof("ipCnt: %d, ipBytes: %d, tcpCnt: %d, tcpBytes: %d, udpCnt: %d, udpBytes: %d, icmpCnt: %d, icmpBytes: %d",
+		//	ipCnt, ipBytes, tcpCnt, tcpBytes, udpCnt, udpBytes, icmpCnt, icmpBytes)
+		mu.Unlock()
 
 		return 0
 	}
@@ -126,35 +130,39 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	
-	//ticker := time.NewTicker(1 * time.Second)
-	//for {
-	//	select {
-	//	case <-ctx.Done():
-	//		return
-	//	case <-ticker.C:
-	//		ipPps := ipCnt
-	//		ipRate := float64(ipBytes*8/1000) / 1000
-	//		tcpPps := tcpCnt
-	//		tcpRate := float64(tcpBytes*8/1000) / 1000
-	//		udpPps := udpCnt
-	//		udpRate := float64(udpBytes*8/1000) / 1000
-	//		icmpPps := icmpCnt
-	//		icmpRate := float64(icmpBytes*8/1000) / 1000
-	//
-	//		log.Infof("IpPPS: %d, IpRate: %.2f, TcpPPS: %d, TcpRate: %.2f, UdpPPS: %d, UdpRate: %.2f, IcmpPPS: %d, IcmpRate: %.2f",
-	//			ipPps, ipRate, tcpPps, tcpRate, udpPps, udpRate, icmpPps, icmpRate)
-	//
-	//		ipCnt = 0
-	//		ipBytes = 0
-	//		tcpCnt = 0
-	//		tcpBytes = 0
-	//		udpCnt = 0
-	//		udpBytes = 0
-	//		icmpCnt = 0
-	//		icmpBytes = 0
-	//	}
-	//}
 
-	time.Sleep(100000 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			mu.RLock()
+			ipPps := ipCnt
+			ipRate := float64(ipBytes*8/1000) / 1000
+			tcpPps := tcpCnt
+			tcpRate := float64(tcpBytes*8/1000) / 1000
+			udpPps := udpCnt
+			udpRate := float64(udpBytes*8/1000) / 1000
+			icmpPps := icmpCnt
+			icmpRate := float64(icmpBytes*8/1000) / 1000
+			mu.RUnlock()
+
+			log.Infof("IpPPS: %d, IpRate: %.2f, TcpPPS: %d, TcpRate: %.2f, UdpPPS: %d, UdpRate: %.2f, IcmpPPS: %d, IcmpRate: %.2f",
+				ipPps, ipRate, tcpPps, tcpRate, udpPps, udpRate, icmpPps, icmpRate)
+
+			mu.Lock()
+			ipCnt = 0
+			ipBytes = 0
+			tcpCnt = 0
+			tcpBytes = 0
+			udpCnt = 0
+			udpBytes = 0
+			icmpCnt = 0
+			icmpBytes = 0
+			mu.Unlock()
+		}
+	}
+
+	//time.Sleep(100000 * time.Second)
 }
