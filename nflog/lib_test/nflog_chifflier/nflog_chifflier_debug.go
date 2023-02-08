@@ -3,17 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/fs714/goiftop/engine/decoder"
-	"github.com/fs714/goiftop/nflog/chifflier"
-	"github.com/fs714/goiftop/utils/log"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/fs714/gopacket-example/nflog/lib/chifflier"
+	"github.com/fs714/gopacket-example/utils/log"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 )
 
 var group int
@@ -56,14 +56,13 @@ func main() {
 		&payload,
 	}
 
-	dec := decoder.NewLayerDecoder(DecodingLayerList...)
-	firstLayer := layers.LayerTypeIPv4
+	dec := gopacket.NewDecodingLayerParser(layers.LayerTypeIPv4, DecodingLayerList...)
 	decoded := make([]gopacket.LayerType, 0, 4)
 	var ipCnt, ipBytes, tcpCnt, tcpBytes, udpCnt, udpBytes, icmpCnt, icmpBytes int64
 	var mu sync.RWMutex
 
 	fn := func(payload *chifflier.Payload) int {
-		err := dec.DecodeLayers(payload.Data, firstLayer, &decoded)
+		err := dec.DecodeLayers(payload.Data, &decoded)
 		if err != nil {
 			ignoreErr := false
 			for _, s := range []string{"TLS", "STP", "Fragment"} {
@@ -82,19 +81,15 @@ func main() {
 			case layers.LayerTypeIPv4:
 				ipCnt++
 				ipBytes += int64(ipv4.Length)
-				break
 			case layers.LayerTypeTCP:
 				tcpCnt++
 				tcpBytes += int64(len(tcp.Contents) + len(tcp.LayerPayload()))
-				break
 			case layers.LayerTypeUDP:
 				udpCnt++
 				udpBytes += int64(udp.Length)
-				break
 			case layers.LayerTypeICMPv4:
 				icmpCnt++
 				icmpBytes += int64(len(icmpv4.Contents) + len(icmpv4.LayerPayload()))
-				break
 			}
 		}
 		mu.Unlock()

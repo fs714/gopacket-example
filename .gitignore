@@ -22,6 +22,9 @@ runtime/*
 # JetBrains
 .idea
 
+# VSCode
+.vscode
+
 # VIM
 *.swp
 

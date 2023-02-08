@@ -3,16 +3,17 @@ package engine
 import (
 	"context"
 	"fmt"
-	"github.com/fs714/goiftop/engine/decoder"
-	"github.com/fs714/goiftop/utils/log"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/fs714/gopacket-example/gopacket_perf/decoder"
+	"github.com/fs714/gopacket-example/utils/log"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/afpacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"golang.org/x/net/bpf"
-	"os"
-	"strings"
-	"time"
 )
 
 type afpacketHandle struct {

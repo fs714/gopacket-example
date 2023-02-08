@@ -2,17 +2,18 @@ package engine
 
 import (
 	"context"
-	"github.com/fs714/goiftop/engine/decoder"
-	"github.com/fs714/goiftop/utils/log"
+	"os"
+	"reflect"
+	"strings"
+	"time"
+
+	"github.com/fs714/gopacket-example/utils/log"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"os"
-	"strings"
-	"time"
 )
 
-func ZeroCopyDecoderEngine(ifaceName string, filter string, ctx context.Context) {
+func ZeroCopyParserEngine(ifaceName string, filter string, ctx context.Context) {
 	handle, err := pcap.OpenLive(ifaceName, 65535, true, pcap.BlockForever)
 	if err != nil {
 		log.Errorf("failed to OpenLive by pcap, err: %s", err.Error())
@@ -26,6 +27,11 @@ func ZeroCopyDecoderEngine(ifaceName string, filter string, ctx context.Context)
 	}
 
 	defer handle.Close()
+
+	linkLayerTypeList := []gopacket.LayerType{
+		layers.LayerTypeEthernet,
+		layers.LayerTypeLinuxSLL,
+	}
 
 	var eth layers.Ethernet
 	var linuxSll layers.LinuxSLL
@@ -55,15 +61,25 @@ func ZeroCopyDecoderEngine(ifaceName string, filter string, ctx context.Context)
 		&payload,
 	}
 
-	dec := decoder.NewLayerDecoder(DecodingLayerList...)
+	var firstLayer gopacket.LayerType
+	for _, l := range linkLayerTypeList {
+		f1 := layers.LinkTypeMetadata[handle.LinkType()].DecodeWith
+		f2 := gopacket.DecodersByLayerName[l.String()]
 
-	firstLayer := dec.GetFirstLayerType(handle.LinkType())
-	if firstLayer == gopacket.LayerTypeZero {
+		if reflect.ValueOf(f1) == reflect.ValueOf(f2) {
+			firstLayer = l
+			break
+		}
+	}
+
+	if firstLayer.String() == "Unknown" {
 		log.Infoln("failed to find first decode layer type")
 		os.Exit(0)
 	}
 
+	parser := gopacket.NewDecodingLayerParser(firstLayer, DecodingLayerList...)
 	decoded := make([]gopacket.LayerType, 0, 4)
+
 	var ipCnt, ipBytes, tcpCnt, tcpBytes, udpCnt, udpBytes, icmpCnt, icmpBytes int64
 	ticker := time.NewTicker(1 * time.Second)
 	for {
@@ -98,7 +114,7 @@ func ZeroCopyDecoderEngine(ifaceName string, filter string, ctx context.Context)
 				continue
 			}
 
-			err = dec.DecodeLayers(data, firstLayer, &decoded)
+			err = parser.DecodeLayers(data, &decoded)
 			if err != nil {
 				ignoreErr := false
 				for _, s := range []string{"TLS", "STP", "Fragment"} {

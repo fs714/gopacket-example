@@ -2,15 +2,16 @@ package engine
 
 import (
 	"context"
-	"github.com/fs714/goiftop/utils/log"
+	"os"
+	"time"
+
+	"github.com/fs714/gopacket-example/utils/log"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"os"
-	"time"
 )
 
-func ZeroCopyEagerEngine(ifaceName string, filter string, ctx context.Context) {
+func DefaultEagerEngine(ifaceName string, filter string, ctx context.Context) {
 	handle, err := pcap.OpenLive(ifaceName, 65535, true, pcap.BlockForever)
 	if err != nil {
 		log.Errorf("failed to OpenLive by pcap, err: %s", err.Error())
@@ -27,6 +28,8 @@ func ZeroCopyEagerEngine(ifaceName string, filter string, ctx context.Context) {
 
 	var ipCnt, ipBytes, tcpCnt, tcpBytes, udpCnt, udpBytes, icmpCnt, icmpBytes int64
 	ticker := time.NewTicker(1 * time.Second)
+	ps := gopacket.NewPacketSource(handle, handle.LinkType())
+	ps.DecodeOptions.NoCopy = true
 	for {
 		select {
 		case <-ctx.Done():
@@ -52,18 +55,9 @@ func ZeroCopyEagerEngine(ifaceName string, filter string, ctx context.Context) {
 			udpBytes = 0
 			icmpCnt = 0
 			icmpBytes = 0
-		default:
-			data, ci, err := handle.ZeroCopyReadPacketData()
-			if err != nil {
-				log.Errorf("error getting packet: %v", err)
-				continue
-			}
-
-			pkt := gopacket.NewPacket(data, handle.LinkType(), gopacket.DecodeOptions{NoCopy: true})
-			m := pkt.Metadata()
-			m.CaptureInfo = ci
-			m.Truncated = m.Truncated || ci.CaptureLength < ci.Length
-
+		case pkt := <-ps.Packets():
+			// By default, gopacket will decode fragmented UDP packet to Segment layer.
+			// To statistic fragmented UDP packet, the first IPv4 layer payload will be decoded and add to pkg layers for UDP
 			ly := pkt.Layer(layers.LayerTypeIPv4)
 			if ly == nil {
 				continue

@@ -1,9 +1,10 @@
 package decoder
 
 import (
+	"reflect"
+
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"reflect"
 )
 
 func NewLayerDecoder(decodingLayers ...gopacket.DecodingLayer) *LayerDecoder {

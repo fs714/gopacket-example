@@ -2,16 +2,17 @@ package engine
 
 import (
 	"context"
-	"github.com/fs714/goiftop/utils/log"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"io"
 	"net"
 	"os"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/fs714/gopacket-example/utils/log"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 )
 
 type ZeroCopyPacketSource struct {

@@ -6,13 +6,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/fs714/goiftop/utils/log"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"os"
 	"runtime/debug"
 	"time"
+
+	"github.com/fs714/gopacket-example/utils/log"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 )
 
 // LayerDump outputs a very verbose string representation of a layer.  Its

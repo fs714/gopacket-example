@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/fs714/goiftop/engine/decoder"
-	"github.com/fs714/goiftop/nflog/alkorin_cb"
-	"github.com/fs714/goiftop/utils/log"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/florianl/go-nflog/v2"
+	"github.com/fs714/gopacket-example/utils/log"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 )
 
 var group int
@@ -24,6 +25,19 @@ func main() {
 	// # iptables -I OUTPUT -p icmp -j NFLOG --nflog-group 100
 	// # iptables -t raw -A PREROUTING -i eth1 -j NFLOG --nflog-group 2 --nflog-range 64 --nflog-threshold 10
 	// # iptables -t mangle -A POSTROUTING -o eth1 -j NFLOG --nflog-group 5 --nflog-range 64 --nflog-threshold 10
+
+	//Set configuration parameters
+	config := nflog.Config{
+		Group:    uint16(group),
+		Copymode: nflog.CopyPacket,
+	}
+
+	nf, err := nflog.Open(&config)
+	if err != nil {
+		fmt.Println("could not open nflog socket:", err)
+		return
+	}
+	defer nf.Close()
 
 	var eth layers.Ethernet
 	var linuxSll layers.LinuxSLL
@@ -53,8 +67,7 @@ func main() {
 		&payload,
 	}
 
-	dec := decoder.NewLayerDecoder(DecodingLayerList...)
-	firstLayer := layers.LayerTypeIPv4
+	dec := gopacket.NewDecodingLayerParser(layers.LayerTypeIPv4, DecodingLayerList...)
 	decoded := make([]gopacket.LayerType, 0, 4)
 	var ipCnt, ipBytes, tcpCnt, tcpBytes, udpCnt, udpBytes, icmpCnt, icmpBytes int64
 	var mu sync.RWMutex
@@ -62,8 +75,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	fn := func(data []byte) int {
-		err := dec.DecodeLayers(data, firstLayer, &decoded)
+	fn := func(attrs nflog.Attribute) int {
+		if attrs.Payload == nil {
+			fmt.Println("attrs.Payload == nil")
+			return 0
+		}
+
+		err := dec.DecodeLayers(*attrs.Payload, &decoded)
 		if err != nil {
 			ignoreErr := false
 			for _, s := range []string{"TLS", "STP", "Fragment"} {
@@ -82,19 +100,15 @@ func main() {
 			case layers.LayerTypeIPv4:
 				ipCnt++
 				ipBytes += int64(ipv4.Length)
-				break
 			case layers.LayerTypeTCP:
 				tcpCnt++
 				tcpBytes += int64(len(tcp.Contents) + len(tcp.LayerPayload()))
-				break
 			case layers.LayerTypeUDP:
 				udpCnt++
 				udpBytes += int64(udp.Length)
-				break
 			case layers.LayerTypeICMPv4:
 				icmpCnt++
 				icmpBytes += int64(len(icmpv4.Contents) + len(icmpv4.LayerPayload()))
-				break
 			}
 		}
 
@@ -105,14 +119,11 @@ func main() {
 		return 0
 	}
 
-	conf := alkorin.NewConfig()
-	conf.Groups = []uint16{uint16(group)}
-	conf.CopyRange = 64
-	conf.Return.Errors = true
-
-	_, err := alkorin.New(conf, fn)
+	// Register your function to listen on nflog group 100
+	err = nf.Register(ctx, fn)
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err)
+		return
 	}
 
 	ticker := time.NewTicker(1 * time.Second)
@@ -147,4 +158,6 @@ func main() {
 			mu.Unlock()
 		}
 	}
+
+	//time.Sleep(100000 * time.Second)
 }

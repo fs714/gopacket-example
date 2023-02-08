@@ -4,11 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/fs714/goiftop/engine"
-	"github.com/fs714/goiftop/utils/log"
 	"os"
 	"os/signal"
 	"runtime/pprof"
+
+	"github.com/fs714/gopacket-example/gopacket_perf/engine"
+	"github.com/fs714/gopacket-example/utils/log"
 )
 
 var ifaceName string
@@ -26,7 +27,7 @@ func init() {
 	flag.Parse()
 
 	if isShowVersion {
-		fmt.Println(AppVersion)
+		fmt.Println("0.0.1")
 		os.Exit(0)
 	}
 }
