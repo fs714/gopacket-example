@@ -57,12 +57,12 @@ func main() {
 			switch typ {
 			case layers.LayerTypeICMPv4:
 				ts := ci.Timestamp.Format(time.RFC3339Nano)
+				srcAddr := ip4.SrcIP.String()
+				dstAddr := ip4.DstIP.String()
 				id := icmpv4.Id
 				seq := icmpv4.Seq
 				typeCode := icmpv4.TypeCode
-				srcAddr := ip4.SrcIP.String()
-				dstAddr := ip4.DstIP.String()
-				fmt.Printf("%-28s icmp  %-6d %-4d %-16s %-16s %-16s\n", ts, id, seq, typeCode.String(), srcAddr, dstAddr)
+				fmt.Printf("%-28s icmp  %-16s %-16s %-6d %-4d %-16s\n", ts, srcAddr, dstAddr, id, seq, typeCode.String())
 			case layers.LayerTypeTCP:
 				ts := ci.Timestamp.Format(time.RFC3339Nano)
 				srcAddr := ip4.SrcIP.String()

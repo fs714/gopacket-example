@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fs714/gopacket-example/gopacket_extend/example01/pktparser"
+	"github.com/fs714/gopacket-example/gopacket_extend/example01/pktparser/pktlayers"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -34,18 +36,19 @@ func main() {
 	icmpv4 := &layers.ICMPv4{}
 	tcp := &layers.TCP{}
 	udp := &layers.UDP{}
-	payload := &gopacket.Payload{}
+	ipsecAH := &pktlayers.IPSecAH{}
+	ipsecESP := &pktlayers.IPSecESP{}
 
-	dlc := gopacket.DecodingLayerContainer(gopacket.DecodingLayerArray(nil))
-	dlc = dlc.Put(eth)
-	dlc = dlc.Put(ip4)
-	dlc = dlc.Put(icmpv4)
-	dlc = dlc.Put(tcp)
-	dlc = dlc.Put(udp)
-	dlc = dlc.Put(payload)
+	decodingLayerList := []gopacket.DecodingLayer{eth, ip4, icmpv4, tcp, udp, ipsecAH, ipsecESP}
 
-	decoder := dlc.LayersDecoder(layers.LayerTypeEthernet, gopacket.NilDecodeFeedback)
-	decoded := make([]gopacket.LayerType, 0, 20)
+	dlc := gopacket.DecodingLayerContainer(pktparser.DecodingLayerSparse{})
+	for _, l := range decodingLayerList {
+		dlc = dlc.Put(l)
+	}
+
+	df := &pktparser.DecodeFeedback{}
+	decoder := dlc.LayersDecoder(layers.LayerTypeEthernet, df)
+	decoded := make([]gopacket.LayerType, 0, len(decodingLayerList))
 
 	var data []byte
 	var ci gopacket.CaptureInfo
@@ -83,6 +86,13 @@ func main() {
 				srcPort := tcp.SrcPort
 				dstPort := tcp.DstPort
 				fmt.Printf("%-28s tcp  %-16s %-16s %-6d %-6d\n", ts, srcAddr, dstAddr, srcPort, dstPort)
+			case layers.LayerTypeIPSecESP:
+				ts := ci.Timestamp.Format(time.RFC3339Nano)
+				srcAddr := ip4.SrcIP.String()
+				dstAddr := ip4.DstIP.String()
+				spi := ipsecESP.SPI
+				seq := ipsecESP.Seq
+				fmt.Printf("%-28s icmp  %-16s %-16s %-6d %-6d\n", ts, srcAddr, dstAddr, spi, seq)
 			}
 		}
 	}
