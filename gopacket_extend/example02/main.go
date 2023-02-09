@@ -38,7 +38,7 @@ func main() {
 
 	decodingLayerList := []gopacket.DecodingLayer{eth, ip4, tcp, udp}
 
-	dlc := gopacket.DecodingLayerContainer(pktparser.DecodingLayerSparse{})
+	dlc := gopacket.DecodingLayerContainer(pktparser.NewDecodingLayerSparse())
 	for _, l := range decodingLayerList {
 		dlc = dlc.Put(l)
 	}
