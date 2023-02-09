@@ -2,6 +2,7 @@ package pktparser
 
 import (
 	"errors"
+	"reflect"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/ip4defrag"
@@ -53,7 +54,7 @@ func (dl *DecodingLayerSparse) LayersDecoder(first gopacket.LayerType, df gopack
 	firstDec, ok := dl.Decoder(first)
 	if !ok {
 		return func([]byte, *[]gopacket.LayerType) (gopacket.LayerType, error) {
-			return first, nil
+			return first, ErrUnsupportedLayerType
 		}
 	}
 
@@ -119,4 +120,17 @@ func (dl *DecodingLayerSparse) Decoder(typ gopacket.LayerType) (gopacket.Decodin
 		return decoder, decoder != nil
 	}
 	return nil, false
+}
+
+func (dl *DecodingLayerSparse) GetFirstLayerType(linkType layers.LinkType) gopacket.LayerType {
+	for typ := range dl.Layers {
+		f1 := layers.LinkTypeMetadata[linkType].DecodeWith
+		f2 := gopacket.DecodersByLayerName[gopacket.LayerType(typ).String()]
+
+		if reflect.ValueOf(f1) == reflect.ValueOf(f2) {
+			return gopacket.LayerType(typ)
+		}
+	}
+
+	return gopacket.LayerTypeZero
 }
