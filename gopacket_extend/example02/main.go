@@ -43,7 +43,7 @@ func main() {
 	dls := pktparser.NewDecodingLayerSparse()
 	dlc := gopacket.DecodingLayerContainer(dls)
 	for _, l := range decodingLayerList {
-		dlc = dlc.Put(l)
+		dlc.Put(l)
 	}
 
 	var firstLayer gopacket.LayerType

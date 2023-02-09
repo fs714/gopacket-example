@@ -32,22 +32,33 @@ func main() {
 	defer handle.Close()
 
 	eth := &layers.Ethernet{}
+	linuxSll := &layers.LinuxSLL{}
+	dot1q := &layers.Dot1Q{}
 	ip4 := &layers.IPv4{}
 	icmpv4 := &layers.ICMPv4{}
 	tcp := &layers.TCP{}
 	udp := &layers.UDP{}
 	ipsecAH := &pktlayers.IPSecAH{}
 	ipsecESP := &pktlayers.IPSecESP{}
+	payload := &gopacket.Payload{}
 
-	decodingLayerList := []gopacket.DecodingLayer{eth, ip4, icmpv4, tcp, udp, ipsecAH, ipsecESP}
+	decodingLayerList := []gopacket.DecodingLayer{eth, linuxSll, dot1q, ip4, icmpv4, tcp, udp, ipsecAH, ipsecESP, payload}
 
-	dlc := gopacket.DecodingLayerContainer(pktparser.DecodingLayerSparse{})
+	dls := &pktparser.DecodingLayerSparse{}
+	dlc := gopacket.DecodingLayerContainer(dls)
 	for _, l := range decodingLayerList {
-		dlc = dlc.Put(l)
+		dlc.Put(l)
+	}
+
+	var firstLayer gopacket.LayerType
+	if handle.LinkType().String() == "Raw" {
+		firstLayer = layers.LayerTypeIPv4
+	} else {
+		firstLayer = dls.GetFirstLayerType(handle.LinkType())
 	}
 
 	df := &pktparser.DecodeFeedback{}
-	decoder := dlc.LayersDecoder(layers.LayerTypeEthernet, df)
+	decoder := dlc.LayersDecoder(firstLayer, df)
 	decoded := make([]gopacket.LayerType, 0, len(decodingLayerList))
 
 	var data []byte
@@ -92,7 +103,7 @@ func main() {
 				dstAddr := ip4.DstIP.String()
 				spi := ipsecESP.SPI
 				seq := ipsecESP.Seq
-				fmt.Printf("%-28s icmp  %-16s %-16s %-6d %-6d\n", ts, srcAddr, dstAddr, spi, seq)
+				fmt.Printf("%-28s esp  %-16s %-16s %-6d %-6d\n", ts, srcAddr, dstAddr, spi, seq)
 			}
 		}
 	}
